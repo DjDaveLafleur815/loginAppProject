@@ -1,0 +1,4 @@
+str~=0.1
+mysql~=0.0.3
+mysql-connector-python~=9.4.0
+fastapi~=0.118.0

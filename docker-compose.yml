@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  flutter:
+    build:
+      context: ./GUI
+      dockerfile: Dockerfile
+    ports:
+      - "1200:80"
+    volumes:
+      - './run/desktop/mnt/host/c/Users/david/loginAppProject/GUI:/GUI:rw'
+
+  fastapi:
+    container_name: fastapi
+    build:
+      context: ./API
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+
+volumes:
+  fastapi_data:
+  dgraph:
+
+networks:
+  my_network:
+    driver: bridge

@@ -1,13 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart'; // Généré par FlutterFire CLI
+import 'package:http/http.dart' as http;
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+// lancement de l'application
+void main() {
   runApp(const MyApp());
 }
 
@@ -43,44 +39,36 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  void _login() async {
+// Fonction de connexion avec requête HTTP
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    final response = await http.post(
+      Uri.parse("http://192.168.1.10:8000/login"), // 🔹 Remplace par ton IP serveur
+      body: {
+        "email": _emailController.text.trim(),
+        "password": _passwordController.text.trim(),
+      },
+    );
 
-      setState(() => _isLoading = false);
+    final data = json.decode(response.body);
+    setState(() => _isLoading = false);
 
+    if (data["success"]) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Connexion réussie ✅")),
+        SnackBar(content: Text(data["message"])),
       );
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
       );
-    } on FirebaseAuthException catch (e) {
-      setState(() => _isLoading = false);
-      String message = "Erreur inconnue";
-      if (e.code == 'user-not-found') message = "Utilisateur non trouvé";
-      if (e.code == 'wrong-password') message = "Mot de passe incorrect";
-
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(content: Text(data["message"])),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -101,17 +89,13 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      "Mon Application",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                    ),
+                    const Text("Mon Application",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text(
-                      "Connectez-vous pour continuer",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    const Text("Connectez-vous pour continuer",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 32),
 
                     TextFormField(
@@ -147,17 +131,6 @@ class _LoginPageState extends State<LoginPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 12),
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // TODO: Page reset password
-                        },
-                        child: const Text("Mot de passe oublié ?"),
-                      ),
-                    ),
                     const SizedBox(height: 16),
 
                     ElevatedButton(
@@ -171,45 +144,7 @@ class _LoginPageState extends State<LoginPage> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text("Se connecter", style: TextStyle(fontSize: 16)),
                     ),
-                    const SizedBox(height: 24),
-
-                    Row(
-                      children: const [
-                        Expanded(child: Divider()),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Text("ou"),
-                        ),
-                        Expanded(child: Divider()),
-                      ],
-                    ),
                     const SizedBox(height: 16),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.g_mobiledata, size: 28),
-                          label: const Text("Google"),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Connexion Google bientôt dispo 🚀")),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.code, size: 28),
-                          label: const Text("GitHub"),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Connexion GitHub bientôt dispo 🚀")),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -246,7 +181,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("Accueil")),
       body: const Center(
-        child: Text("Bienvenue sur la page d'accueil 🎉", style: TextStyle(fontSize: 18)),
+        child: Text("Bienvenue 🎉", style: TextStyle(fontSize: 18)),
       ),
     );
   }
@@ -265,46 +200,34 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
-  void _register() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    final response = await http.post(
+      Uri.parse("http://192.168.1.10:8000/register"), // 🔹 Remplace par ton IP serveur
+      body: {
+        "email": _emailController.text.trim(),
+        "password": _passwordController.text.trim(),
+      },
+    );
 
-      setState(() => _isLoading = false);
+    final data = json.decode(response.body);
+    setState(() => _isLoading = false);
 
+    if (data["success"]) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Compte créé ✅")),
+        SnackBar(content: Text(data["message"])),
       );
-
       Navigator.pop(context); // Retour au login
-    } on FirebaseAuthException catch (e) {
-      setState(() => _isLoading = false);
-      String message = "Erreur inconnue";
-      if (e.code == 'email-already-in-use') message = "Email déjà utilisé";
-      if (e.code == 'weak-password') message = "Mot de passe trop faible";
-
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(content: Text(data["message"])),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -325,11 +248,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      "Inscription",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                    ),
+                    const Text("Inscription",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 32),
 
                     TextFormField(
@@ -349,14 +270,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: _obscurePassword,
+                      obscureText: true,
                       decoration: InputDecoration(
                         labelText: "Mot de passe",
                         prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       validator: (value) {
@@ -369,18 +286,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     TextFormField(
                       controller: _confirmPasswordController,
-                      obscureText: _obscureConfirmPassword,
+                      obscureText: true,
                       decoration: InputDecoration(
                         labelText: "Confirmer le mot de passe",
                         prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                        ),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return "Veuillez confirmer le mot de passe";
                         if (value != _passwordController.text) return "Les mots de passe ne correspondent pas";
                         return null;
                       },
